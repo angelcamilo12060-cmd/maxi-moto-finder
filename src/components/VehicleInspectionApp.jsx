@@ -777,6 +777,54 @@ export default function VehicleInspectionApp() {
 
   const totalDamages = Object.values(damages).reduce((sum, arr) => sum + arr.length, 0);
 
+  /* --------------------------- AUTOGUARDADO -------------------------------- */
+  const draftPayload = {
+    mode,
+    km,
+    fuelLevel,
+    damages,
+    odometerPhoto,
+    rentalDateTime,
+    returnDateTime,
+    pickupLocation,
+    returnLocation,
+    cleanliness,
+    revisions,
+    accessories,
+  };
+  const draftSignature = JSON.stringify(draftPayload);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    setDraftStatus("saving");
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, draftSignature);
+        setDraftStatus("saved");
+      } catch {
+        setDraftStatus("idle");
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [draftSignature]);
+
+  /* ----------------------- PROGRESO DE LA INSPECCIÓN ----------------------- */
+  const checklistSteps = [
+    { label: "Kilometraje", done: Boolean(km) },
+    { label: "Foto del tacómetro", done: Boolean(odometerPhoto) },
+    { label: "Fecha de entrega", done: Boolean(rentalDateTime) },
+    { label: "Ubicación GPS", done: Boolean(pickupLocation || returnLocation) },
+    { label: "Revisión de daños", done: Object.values(damages).some((a) => a.length > 0) || Boolean(km) },
+    ...(mode === "checkout"
+      ? [
+          { label: "Limpieza", done: Boolean(cleanliness) },
+          { label: "Accesorios", done: Object.values(accessories).some(Boolean) },
+        ]
+      : []),
+  ];
+  const completedSteps = checklistSteps.filter((s) => s.done).length;
+  const progress = Math.round((completedSteps / checklistSteps.length) * 100);
+
   const handleOdometerPhoto = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
