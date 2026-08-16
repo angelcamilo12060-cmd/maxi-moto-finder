@@ -402,9 +402,14 @@ function DamageMapPanel({ damages, setDamages }) {
       <div
         ref={containerRef}
         onClick={handleTap}
+        onMouseMove={onDragMove}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onTouchMove={onDragMove}
+        onTouchEnd={endDrag}
         className={`relative w-full ${
           activeView === "superior" ? "aspect-[3/4]" : "aspect-[4/3]"
-        } bg-gray-50 rounded-xl border border-dashed border-gray-200 overflow-hidden cursor-crosshair select-none`}
+        } bg-gray-50 rounded-xl border border-dashed border-gray-200 overflow-hidden cursor-crosshair select-none touch-none transition-colors hover:bg-gray-100/70`}
       >
         <div className="absolute inset-4 pointer-events-none">
           <ScooterSilhouette view={activeView} />
@@ -413,13 +418,19 @@ function DamageMapPanel({ damages, setDamages }) {
         {currentMarkers.map((m) => (
           <button
             key={m.id}
+            onMouseDown={(e) => startDrag(e, m.id)}
+            onTouchStart={(e) => startDrag(e, m.id)}
             onClick={(e) => {
               e.stopPropagation();
+              if (dragMoved.current) {
+                dragMoved.current = false;
+                return;
+              }
               removeMarker(m.id);
             }}
             style={{ left: `${m.x}%`, top: `${m.y}%` }}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full ${DAMAGE_COLORS[m.type]} ring-2 ring-white shadow-md flex items-center justify-center`}
-            title="Toca para eliminar"
+            className={`absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full ${DAMAGE_COLORS[m.type]} ring-2 ring-white shadow-md flex items-center justify-center transition-transform duration-150 hover:scale-125 active:scale-110 cursor-grab active:cursor-grabbing`}
+            title="Arrastra para mover · Toca para eliminar"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-white" />
           </button>
@@ -443,6 +454,10 @@ function DamageMapPanel({ damages, setDamages }) {
         ))}
       </div>
 
+      <p className="mt-2 text-[11px] text-gray-400">
+        Arrastra un punto para reubicarlo · tócalo para eliminarlo
+      </p>
+
       {/* Lista de daños registrados en esta vista */}
       {currentMarkers.length > 0 && (
         <div className="mt-4 space-y-2">
@@ -456,7 +471,13 @@ function DamageMapPanel({ damages, setDamages }) {
                 {m.note && <p className="text-xs text-gray-500 truncate">{m.note}</p>}
               </div>
               {m.photo && (
-                <img src={m.photo} alt="Foto del daño" className="h-9 w-9 rounded-md object-cover shrink-0" />
+                <button
+                  onClick={() => setLightbox(m.photo)}
+                  className="shrink-0 transition-transform hover:scale-105"
+                  aria-label="Ampliar foto"
+                >
+                  <img src={m.photo} alt="Foto del daño" className="h-9 w-9 rounded-md object-cover" />
+                </button>
               )}
               <button
                 onClick={() => removeMarker(m.id)}
@@ -473,7 +494,7 @@ function DamageMapPanel({ damages, setDamages }) {
       {/* Modal de registro de daño */}
       {pendingPoint && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
-          <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-6 animate-in slide-in-from-bottom">
+          <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-6 animate-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-base font-semibold text-gray-900">Nuevo punto de daño</h4>
               <button
