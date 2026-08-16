@@ -33,7 +33,12 @@ import {
   Loader2,
   CheckCircle2,
   ExternalLink,
+  Search,
+  Copy,
+  Eye,
+  Check,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // NOTA DE DEPENDENCIA: la exportación a PDF usa la librería "jspdf".
 // Instálala en tu proyecto con:  npm install jspdf
@@ -44,6 +49,7 @@ import jsPDF from "jspdf";
 /* -------------------------------------------------------------------------- */
 
 const STORAGE_KEY = "maxi_moto_bcn_inspecciones";
+const DRAFT_KEY = "maxi_moto_bcn_borrador";
 
 const FUEL_LEVELS = [25, 50, 75, 100];
 
@@ -220,6 +226,9 @@ function DamageMapPanel({ damages, setDamages }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [pendingPoint, setPendingPoint] = useState(null);
   const [form, setForm] = useState({ type: "aranazo", note: "", photo: null });
+  const [lightbox, setLightbox] = useState(null);
+  const draggingId = useRef(null);
+  const dragMoved = useRef(false);
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -246,6 +255,10 @@ function DamageMapPanel({ damages, setDamages }) {
   };
 
   const handleTap = (e) => {
+    if (dragMoved.current) {
+      dragMoved.current = false;
+      return;
+    }
     const rect = containerRef.current.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -278,6 +291,11 @@ function DamageMapPanel({ damages, setDamages }) {
       [activeView]: [...prev[activeView], newMarker],
     }));
     setPendingPoint(null);
+    toast.success("Daño registrado", {
+      description: `${DAMAGE_TYPES.find((t) => t.id === form.type)?.label} · ${
+        VIEWS.find((v) => v.id === activeView)?.label
+      }`,
+    });
   };
 
   const removeMarker = (id) => {
@@ -285,6 +303,39 @@ function DamageMapPanel({ damages, setDamages }) {
       ...prev,
       [activeView]: prev[activeView].filter((m) => m.id !== id),
     }));
+    toast("Daño eliminado");
+  };
+
+  /* ----------------------- Arrastrar marcadores --------------------------- */
+  const pointToPercent = (clientX, clientY) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    return {
+      x: Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const startDrag = (e, id) => {
+    e.stopPropagation();
+    draggingId.current = id;
+    dragMoved.current = false;
+  };
+
+  const onDragMove = (e) => {
+    if (!draggingId.current) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const { x, y } = pointToPercent(clientX, clientY);
+    dragMoved.current = true;
+    const id = draggingId.current;
+    setDamages((prev) => ({
+      ...prev,
+      [activeView]: prev[activeView].map((m) => (m.id === id ? { ...m, x, y } : m)),
+    }));
+  };
+
+  const endDrag = () => {
+    draggingId.current = null;
   };
 
   const currentMarkers = damages[activeView] || [];
@@ -356,9 +407,14 @@ function DamageMapPanel({ damages, setDamages }) {
       <div
         ref={containerRef}
         onClick={handleTap}
+        onMouseMove={onDragMove}
+        onMouseUp={endDrag}
+        onMouseLeave={endDrag}
+        onTouchMove={onDragMove}
+        onTouchEnd={endDrag}
         className={`relative w-full ${
           activeView === "superior" ? "aspect-[3/4]" : "aspect-[4/3]"
-        } bg-gray-50 rounded-xl border border-dashed border-gray-200 overflow-hidden cursor-crosshair select-none`}
+        } bg-gray-50 rounded-xl border border-dashed border-gray-200 overflow-hidden cursor-crosshair select-none touch-none transition-colors hover:bg-gray-100/70`}
       >
         <div className="absolute inset-4 pointer-events-none">
           <ScooterSilhouette view={activeView} />
@@ -367,13 +423,19 @@ function DamageMapPanel({ damages, setDamages }) {
         {currentMarkers.map((m) => (
           <button
             key={m.id}
+            onMouseDown={(e) => startDrag(e, m.id)}
+            onTouchStart={(e) => startDrag(e, m.id)}
             onClick={(e) => {
               e.stopPropagation();
+              if (dragMoved.current) {
+                dragMoved.current = false;
+                return;
+              }
               removeMarker(m.id);
             }}
             style={{ left: `${m.x}%`, top: `${m.y}%` }}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full ${DAMAGE_COLORS[m.type]} ring-2 ring-white shadow-md flex items-center justify-center`}
-            title="Toca para eliminar"
+            className={`absolute -translate-x-1/2 -translate-y-1/2 h-6 w-6 rounded-full ${DAMAGE_COLORS[m.type]} ring-2 ring-white shadow-md flex items-center justify-center transition-transform duration-150 hover:scale-125 active:scale-110 cursor-grab active:cursor-grabbing`}
+            title="Arrastra para mover · Toca para eliminar"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-white" />
           </button>
@@ -397,6 +459,10 @@ function DamageMapPanel({ damages, setDamages }) {
         ))}
       </div>
 
+      <p className="mt-2 text-[11px] text-gray-400">
+        Arrastra un punto para reubicarlo · tócalo para eliminarlo
+      </p>
+
       {/* Lista de daños registrados en esta vista */}
       {currentMarkers.length > 0 && (
         <div className="mt-4 space-y-2">
@@ -410,7 +476,13 @@ function DamageMapPanel({ damages, setDamages }) {
                 {m.note && <p className="text-xs text-gray-500 truncate">{m.note}</p>}
               </div>
               {m.photo && (
-                <img src={m.photo} alt="Foto del daño" className="h-9 w-9 rounded-md object-cover shrink-0" />
+                <button
+                  onClick={() => setLightbox(m.photo)}
+                  className="shrink-0 transition-transform hover:scale-105"
+                  aria-label="Ampliar foto"
+                >
+                  <img src={m.photo} alt="Foto del daño" className="h-9 w-9 rounded-md object-cover" />
+                </button>
               )}
               <button
                 onClick={() => removeMarker(m.id)}
@@ -427,7 +499,7 @@ function DamageMapPanel({ damages, setDamages }) {
       {/* Modal de registro de daño */}
       {pendingPoint && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
-          <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-6 animate-in slide-in-from-bottom">
+          <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-6 animate-in slide-in-from-bottom duration-200">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-base font-semibold text-gray-900">Nuevo punto de daño</h4>
               <button
@@ -490,6 +562,22 @@ function DamageMapPanel({ damages, setDamages }) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Visor de fotos */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <img src={lightbox} alt="Foto ampliada" className="max-h-[85vh] w-auto rounded-2xl" />
+          <button
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/15 text-white flex items-center justify-center"
+            aria-label="Cerrar"
+          >
+            <X size={18} />
+          </button>
         </div>
       )}
     </div>
@@ -636,6 +724,15 @@ export default function VehicleInspectionApp() {
 
   // Historial local
   const [savedRecords, setSavedRecords] = useState([]);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyFilter, setHistoryFilter] = useState("todos"); // todos | checkin | checkout
+  const [detailRecord, setDetailRecord] = useState(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  // Autoguardado de borrador
+  const [draftStatus, setDraftStatus] = useState("idle"); // idle | saving | saved
+  const [draftRestored, setDraftRestored] = useState(false);
+  const hydrated = useRef(false);
 
   // Refs de firma (para leer la imagen al guardar / exportar PDF)
   const ownerSigRef = useRef(null);
@@ -648,12 +745,85 @@ export default function VehicleInspectionApp() {
     } catch {
       setSavedRecords([]);
     }
+    // Restaurar borrador en curso
+    try {
+      const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+      if (draft) {
+        setMode(draft.mode ?? "checkin");
+        setKm(draft.km ?? "");
+        setFuelLevel(draft.fuelLevel ?? 100);
+        setDamages(draft.damages ?? emptyDamagesState());
+        setOdometerPhoto(draft.odometerPhoto ?? null);
+        setRentalDateTime(draft.rentalDateTime || nowForInput());
+        setReturnDateTime(draft.returnDateTime ?? "");
+        setPickupLocation(draft.pickupLocation ?? null);
+        setReturnLocation(draft.returnLocation ?? null);
+        setCleanliness(draft.cleanliness ?? null);
+        if (draft.revisions) setRevisions(draft.revisions);
+        if (draft.accessories) setAccessories(draft.accessories);
+        setDraftRestored(true);
+        toast("Borrador recuperado", {
+          description: "Hemos restaurado la inspección que dejaste a medias.",
+        });
+      }
+    } catch {
+      /* borrador corrupto: se ignora */
+    }
+    hydrated.current = true;
   }, []);
 
   const toggleRevision = (id) => setRevisions((prev) => ({ ...prev, [id]: !prev[id] }));
   const toggleAccessory = (id) => setAccessories((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const totalDamages = Object.values(damages).reduce((sum, arr) => sum + arr.length, 0);
+
+  /* --------------------------- AUTOGUARDADO -------------------------------- */
+  const draftPayload = {
+    mode,
+    km,
+    fuelLevel,
+    damages,
+    odometerPhoto,
+    rentalDateTime,
+    returnDateTime,
+    pickupLocation,
+    returnLocation,
+    cleanliness,
+    revisions,
+    accessories,
+  };
+  const draftSignature = JSON.stringify(draftPayload);
+
+  useEffect(() => {
+    if (!hydrated.current) return;
+    setDraftStatus("saving");
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, draftSignature);
+        setDraftStatus("saved");
+      } catch {
+        setDraftStatus("idle");
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [draftSignature]);
+
+  /* ----------------------- PROGRESO DE LA INSPECCIÓN ----------------------- */
+  const checklistSteps = [
+    { label: "Kilometraje", done: Boolean(km) },
+    { label: "Foto del tacómetro", done: Boolean(odometerPhoto) },
+    { label: "Fecha de entrega", done: Boolean(rentalDateTime) },
+    { label: "Ubicación GPS", done: Boolean(pickupLocation || returnLocation) },
+    { label: "Revisión de daños", done: Object.values(damages).some((a) => a.length > 0) || Boolean(km) },
+    ...(mode === "checkout"
+      ? [
+          { label: "Limpieza", done: Boolean(cleanliness) },
+          { label: "Accesorios", done: Object.values(accessories).some(Boolean) },
+        ]
+      : []),
+  ];
+  const completedSteps = checklistSteps.filter((s) => s.done).length;
+  const progress = Math.round((completedSteps / checklistSteps.length) * 100);
 
   const handleOdometerPhoto = (e) => {
     const file = e.target.files?.[0];
@@ -666,7 +836,7 @@ export default function VehicleInspectionApp() {
   /* --------------------------- GEOLOCALIZACIÓN GPS ------------------------ */
   const captureLocation = (target) => {
     if (!navigator.geolocation) {
-      alert("La geolocalización no está disponible en este dispositivo o navegador.");
+      toast.error("Geolocalización no disponible en este dispositivo.");
       return;
     }
     const setLoading = target === "entrega" ? setPickupLoading : setReturnLoading;
@@ -682,10 +852,11 @@ export default function VehicleInspectionApp() {
         if (target === "entrega") setPickupLocation(loc);
         else setReturnLocation(loc);
         setLoading(false);
+        toast.success(`Ubicación de ${target} capturada`);
       },
       (err) => {
         setLoading(false);
-        alert("No se pudo obtener la ubicación: " + err.message);
+        toast.error("No se pudo obtener la ubicación", { description: err.message });
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -713,17 +884,83 @@ export default function VehicleInspectionApp() {
       const updated = [record, ...existing];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       setSavedRecords(updated);
-      alert("Registro guardado en el historial local del dispositivo.");
+      toast.success("Registro guardado", {
+        description: "Disponible en el historial de este dispositivo.",
+      });
     } catch (err) {
-      alert("No se pudo guardar el registro: " + err.message);
+      toast.error("No se pudo guardar el registro", { description: err.message });
     }
   };
 
   const handleClearHistory = () => {
-    if (!window.confirm("¿Eliminar todo el historial guardado en este dispositivo?")) return;
     localStorage.removeItem(STORAGE_KEY);
     setSavedRecords([]);
+    setConfirmClear(false);
+    toast("Historial vaciado");
   };
+
+  const deleteRecord = (id) => {
+    const updated = savedRecords.filter((r) => r.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setSavedRecords(updated);
+    setDetailRecord(null);
+    toast("Registro eliminado");
+  };
+
+  const loadRecord = (r) => {
+    setMode(r.mode ?? "checkin");
+    setKm(r.km ?? "");
+    setFuelLevel(r.fuelLevel ?? 100);
+    setDamages(r.damages ?? emptyDamagesState());
+    setOdometerPhoto(r.odometerPhoto ?? null);
+    setRentalDateTime(r.rentalDateTime || nowForInput());
+    setReturnDateTime(r.returnDateTime ?? "");
+    setPickupLocation(r.pickupLocation ?? null);
+    setReturnLocation(r.returnLocation ?? null);
+    setCleanliness(r.cleanliness ?? null);
+    if (r.revisions) setRevisions(r.revisions);
+    if (r.accessories) setAccessories(r.accessories);
+    setDetailRecord(null);
+    toast.success("Inspección cargada en el formulario");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setKm("");
+    setFuelLevel(100);
+    setDamages(emptyDamagesState());
+    setOdometerPhoto(null);
+    setRentalDateTime(nowForInput());
+    setReturnDateTime("");
+    setPickupLocation(null);
+    setReturnLocation(null);
+    setCleanliness(null);
+    setRevisions(REVISIONS_LIST.reduce((acc, r) => ({ ...acc, [r.id]: false }), {}));
+    setAccessories(ACCESSORIES_LIST.reduce((acc, a) => ({ ...acc, [a.id]: false }), {}));
+    ownerSigRef.current?.clear();
+    clientSigRef.current?.clear();
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftRestored(false);
+    toast("Formulario vacío listo para una nueva inspección");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const filteredRecords = savedRecords
+    .filter((r) => (historyFilter === "todos" ? true : r.mode === historyFilter))
+    .filter((r) => {
+      const q = historyQuery.trim().toLowerCase();
+      if (!q) return true;
+      return [
+        r.km,
+        r.mode === "checkin" ? "entrega" : "devolución",
+        new Date(r.savedAt).toLocaleString("es-ES"),
+        r.cleanliness,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
 
   /* -------------------------------- PDF ------------------------------------ */
   const handleGeneratePDF = () => {
@@ -836,11 +1073,10 @@ export default function VehicleInspectionApp() {
 
       const fileDate = (rentalDateTime || nowForInput()).replace(/[:T]/g, "-");
       doc.save(`inspeccion-nmax125-${fileDate}.pdf`);
+      toast.success("PDF generado");
     } catch (err) {
       console.error(err);
-      alert(
-        "No se pudo generar el PDF. Verifica que la dependencia 'jspdf' esté instalada (npm install jspdf)."
-      );
+      toast.error("No se pudo generar el PDF", { description: err.message });
     }
   };
 
@@ -862,7 +1098,8 @@ export default function VehicleInspectionApp() {
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
       {/* CABECERA CON BRANDING */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 pt-5 pb-4 flex items-center gap-3">
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 pt-5 pb-3">
+        <div className="flex items-center gap-3">
         {/*
           Espacio reservado para el logo oficial de Maxi Moto Bcn.
           Sustituye este bloque por:
@@ -873,13 +1110,56 @@ export default function VehicleInspectionApp() {
         <div className="h-12 w-12 rounded-xl bg-gray-900 flex items-center justify-center overflow-hidden shrink-0">
           <Building2 size={22} className="text-orange-400" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-gray-900 leading-tight">Maxi Moto Bcn</h1>
           <p className="text-xs text-gray-400">Registro de Inspección de Vehículo</p>
+        </div>
+          <span
+            className={`text-[11px] font-medium flex items-center gap-1 transition-opacity ${
+              draftStatus === "saved" ? "text-emerald-600" : "text-gray-400"
+            }`}
+          >
+            {draftStatus === "saving" ? (
+              <>
+                <Loader2 size={12} className="animate-spin" /> Guardando
+              </>
+            ) : draftStatus === "saved" ? (
+              <>
+                <Check size={12} /> Guardado
+              </>
+            ) : null}
+          </span>
+        </div>
+
+        {/* Barra de progreso */}
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-medium text-gray-500">
+              Progreso de la inspección · {completedSteps}/{checklistSteps.length}
+            </span>
+            <span className="text-[11px] font-bold text-blue-600">{progress}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       </header>
 
       <main className="px-4 pt-4 space-y-4 max-w-md mx-auto">
+        {draftRestored && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 animate-in fade-in slide-in-from-top-2">
+            <p className="text-xs text-amber-700">Estás continuando un borrador guardado.</p>
+            <button
+              onClick={resetForm}
+              className="text-xs font-semibold text-amber-700 underline underline-offset-2"
+            >
+              Empezar de cero
+            </button>
+          </div>
+        )}
         {/* TARJETA DE VEHÍCULO */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
           <div className="h-14 w-14 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
@@ -1185,32 +1465,96 @@ export default function VehicleInspectionApp() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
               <History size={16} className="text-blue-600" />
-              Historial de Entregas (este dispositivo)
+              Historial ({savedRecords.length})
             </h3>
             {savedRecords.length > 0 && (
-              <button onClick={handleClearHistory} className="text-xs text-gray-400 active:text-red-500">
+              <button
+                onClick={() => setConfirmClear(true)}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
                 Vaciar
               </button>
             )}
           </div>
+
           {savedRecords.length === 0 ? (
             <p className="text-xs text-gray-400">Aún no hay registros guardados en este dispositivo.</p>
           ) : (
-            <div className="space-y-2 max-h-56 overflow-y-auto">
-              {savedRecords.slice(0, 8).map((r) => (
-                <div key={r.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">
-                      {r.mode === "checkin" ? "Entrega" : "Devolución"} · {r.km || "-"} km
-                    </p>
-                    <p className="text-[11px] text-gray-400">
-                      {new Date(r.savedAt).toLocaleString("es-ES")}
-                    </p>
-                  </div>
-                  <span className="text-[11px] text-gray-400">{r.totalDamages} daño(s)</span>
+            <>
+              <div className="relative mb-2">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={historyQuery}
+                  onChange={(e) => setHistoryQuery(e.target.value)}
+                  placeholder="Buscar por km, fecha o tipo..."
+                  className="w-full h-11 rounded-xl border border-gray-200 pl-9 pr-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-1.5 mb-3">
+                {[
+                  { id: "todos", label: "Todos" },
+                  { id: "checkin", label: "Entregas" },
+                  { id: "checkout", label: "Devoluciones" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setHistoryFilter(f.id)}
+                    className={`flex-1 h-9 rounded-lg text-xs font-semibold transition-colors ${
+                      historyFilter === f.id
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {filteredRecords.length === 0 ? (
+                <p className="text-xs text-gray-400">Sin resultados para esta búsqueda.</p>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {filteredRecords.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 transition-colors hover:bg-gray-100"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-800">
+                          {r.mode === "checkin" ? "Entrega" : "Devolución"} · {r.km || "-"} km ·{" "}
+                          {r.fuelLevel}%
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {new Date(r.savedAt).toLocaleString("es-ES")} · {r.totalDamages} daño(s)
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setDetailRecord(r)}
+                        className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-blue-600"
+                        aria-label="Ver detalle"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        onClick={() => loadRecord(r)}
+                        className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-emerald-600"
+                        aria-label="Duplicar en el formulario"
+                      >
+                        <Copy size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteRecord(r.id)}
+                        className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-red-500"
+                        aria-label="Eliminar registro"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 
@@ -1227,27 +1571,119 @@ export default function VehicleInspectionApp() {
         <div className="space-y-3 pt-1">
           <button
             onClick={handleSaveRecord}
-            className="w-full h-14 rounded-2xl bg-gray-900 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:bg-gray-800"
+            className="w-full h-14 rounded-2xl bg-gray-900 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-transform duration-150 hover:bg-gray-800 active:scale-[0.98]"
           >
             <Save size={18} />
             Guardar Registro en Historial
           </button>
           <button
             onClick={handleGeneratePDF}
-            className="w-full h-14 rounded-2xl bg-blue-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:bg-blue-700"
+            className="w-full h-14 rounded-2xl bg-blue-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-transform duration-150 hover:bg-blue-700 active:scale-[0.98]"
           >
             <FileDown size={18} />
             Generar Reporte y Guardar PDF
           </button>
           <button
             onClick={handleWhatsApp}
-            className="w-full h-14 rounded-2xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:bg-emerald-700"
+            className="w-full h-14 rounded-2xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-transform duration-150 hover:bg-emerald-700 active:scale-[0.98]"
           >
             <MessageCircle size={18} />
             Enviar Resumen por WhatsApp
           </button>
+          <button
+            onClick={resetForm}
+            className="w-full h-12 rounded-2xl border border-gray-200 bg-white text-gray-600 font-semibold text-sm flex items-center justify-center gap-2 transition-colors hover:bg-gray-50"
+          >
+            <Eraser size={16} />
+            Nueva inspección (vaciar formulario)
+          </button>
         </div>
       </main>
+
+      {/* MODAL DETALLE DE REGISTRO */}
+      {detailRecord && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
+          <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-6 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-base font-semibold text-gray-900">Detalle de la inspección</h4>
+              <button
+                onClick={() => setDetailRecord(null)}
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"
+                aria-label="Cerrar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <dl className="space-y-2 text-sm">
+              {[
+                ["Tipo", detailRecord.mode === "checkin" ? "Entrega" : "Devolución"],
+                ["Guardado", new Date(detailRecord.savedAt).toLocaleString("es-ES")],
+                ["Kilometraje", detailRecord.km ? `${detailRecord.km} km` : "-"],
+                ["Combustible", `${detailRecord.fuelLevel}%`],
+                ["Entrega", detailRecord.rentalDateTime || "-"],
+                ["Devolución", detailRecord.returnDateTime || "-"],
+                ["Daños", `${detailRecord.totalDamages}`],
+                ...(detailRecord.cleanliness ? [["Limpieza", detailRecord.cleanliness]] : []),
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 border-b border-gray-100 pb-1.5">
+                  <dt className="text-gray-500">{k}</dt>
+                  <dd className="font-medium text-gray-800 text-right">{v}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {detailRecord.odometerPhoto && (
+              <img
+                src={detailRecord.odometerPhoto}
+                alt="Tacómetro"
+                className="mt-4 w-full h-36 object-cover rounded-xl"
+              />
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => deleteRecord(detailRecord.id)}
+                className="flex-1 h-12 rounded-xl bg-red-50 text-red-600 font-medium"
+              >
+                Eliminar
+              </button>
+              <button
+                onClick={() => loadRecord(detailRecord)}
+                className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Cargar datos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAR VACIADO */}
+      {confirmClear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-xs bg-white rounded-2xl p-5 animate-in zoom-in-95 duration-150">
+            <h4 className="text-base font-semibold text-gray-900 mb-1">¿Vaciar el historial?</h4>
+            <p className="text-xs text-gray-500 mb-5">
+              Se eliminarán todas las inspecciones guardadas en este dispositivo.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-600 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleClearHistory}
+                className="flex-1 h-11 rounded-xl bg-red-600 text-white font-medium"
+              >
+                Vaciar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
