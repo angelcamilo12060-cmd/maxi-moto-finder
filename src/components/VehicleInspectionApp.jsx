@@ -25,7 +25,6 @@ import {
   ShieldCheck,
   Trash2,
   ArrowLeftRight,
-  Building2,
   ImagePlus,
   Navigation,
   Save,
@@ -963,6 +962,13 @@ export default function VehicleInspectionApp() {
     });
 
   /* -------------------------------- PDF ------------------------------------ */
+  const getImageFormat = (dataUrl) => {
+    if (typeof dataUrl !== "string") return "JPEG";
+    if (dataUrl.startsWith("data:image/png")) return "PNG";
+    if (dataUrl.startsWith("data:image/webp")) return "WEBP";
+    return "JPEG";
+  };
+
   const handleGeneratePDF = () => {
     try {
       const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -1022,7 +1028,7 @@ export default function VehicleInspectionApp() {
         doc.setFont(undefined, "bold");
         doc.text("Foto del tacómetro:", 14, y);
         y += 4;
-        doc.addImage(odometerPhoto, "JPEG", 14, y, 70, 50);
+        doc.addImage(odometerPhoto, getImageFormat(odometerPhoto), 14, y, 70, 50);
         y += 56;
       }
 
@@ -1047,7 +1053,7 @@ export default function VehicleInspectionApp() {
             y = 20;
             x = 14;
           }
-          doc.addImage(d.photo, "JPEG", x, y, 36, 36);
+          doc.addImage(d.photo, getImageFormat(d.photo), x, y, 36, 36);
           x += 42;
         });
         y += 46;
@@ -1100,16 +1106,11 @@ export default function VehicleInspectionApp() {
       {/* CABECERA CON BRANDING */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 pt-5 pb-3">
         <div className="flex items-center gap-3">
-        {/*
-          Espacio reservado para el logo oficial de Maxi Moto Bcn.
-          Sustituye este bloque por:
-          <img src="/logo-maxi-moto-bcn.png" alt="Maxi Moto Bcn"
-               className="h-12 w-12 object-contain rounded-xl" />
-          usando un export limpio (PNG/SVG) del logo, no una foto.
-        */}
-        <div className="h-12 w-12 rounded-xl bg-gray-900 flex items-center justify-center overflow-hidden shrink-0">
-          <Building2 size={22} className="text-orange-400" />
-        </div>
+        <img
+          src="/icons/icon-192.png"
+          alt="Maxi Moto Bcn"
+          className="h-12 w-12 rounded-xl object-contain shrink-0"
+        />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-gray-900 leading-tight">Maxi Moto Bcn</h1>
           <p className="text-xs text-gray-400">Registro de Inspección de Vehículo</p>

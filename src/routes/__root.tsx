@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "../components/ui/sonner";
+import PinLock from "../components/PinLock.jsx";
 
 function NotFoundComponent() {
   return (
@@ -78,15 +79,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Maxi Moto Bcn — Inspección de Vehículos" },
+      {
+        name: "description",
+        content:
+          "Check-in y Check-out digital para alquiler de la Yamaha NMAX 125: daños, limpieza, GPS, firmas y reporte en PDF.",
+      },
+      { name: "author", content: "Maxi Moto Bcn" },
+      { property: "og:title", content: "Maxi Moto Bcn — Inspección de Vehículos" },
+      {
+        property: "og:description",
+        content: "App de inspección de motos de alquiler con mapa de daños, GPS, firmas y PDF.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
-      { name: "theme-color", content: "#dc2626" },
+      { name: "theme-color", content: "#111827" },
     ],
     links: [
       {
@@ -94,7 +101,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
-      { rel: "apple-touch-icon", href: "/icons/icon-512.png" },
+      { rel: "apple-touch-icon", href: "/icons/icon-192.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
     ],
   }),
@@ -124,7 +131,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <PinLock>
+        <Outlet />
+      </PinLock>
       <Toaster position="top-center" richColors />
     </QueryClientProvider>
   );
