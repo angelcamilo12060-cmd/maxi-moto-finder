@@ -291,6 +291,11 @@ function DamageMapPanel({ damages, setDamages }) {
       [activeView]: [...prev[activeView], newMarker],
     }));
     setPendingPoint(null);
+    toast.success("Daño registrado", {
+      description: `${DAMAGE_TYPES.find((t) => t.id === form.type)?.label} · ${
+        VIEWS.find((v) => v.id === activeView)?.label
+      }`,
+    });
   };
 
   const removeMarker = (id) => {
