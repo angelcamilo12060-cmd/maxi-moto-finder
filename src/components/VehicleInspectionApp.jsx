@@ -33,7 +33,12 @@ import {
   Loader2,
   CheckCircle2,
   ExternalLink,
+  Search,
+  Copy,
+  Eye,
+  Check,
 } from "lucide-react";
+import { toast } from "sonner";
 
 // NOTA DE DEPENDENCIA: la exportación a PDF usa la librería "jspdf".
 // Instálala en tu proyecto con:  npm install jspdf
@@ -44,6 +49,7 @@ import jsPDF from "jspdf";
 /* -------------------------------------------------------------------------- */
 
 const STORAGE_KEY = "maxi_moto_bcn_inspecciones";
+const DRAFT_KEY = "maxi_moto_bcn_borrador";
 
 const FUEL_LEVELS = [25, 50, 75, 100];
 
