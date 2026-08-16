@@ -836,7 +836,7 @@ export default function VehicleInspectionApp() {
   /* --------------------------- GEOLOCALIZACIÓN GPS ------------------------ */
   const captureLocation = (target) => {
     if (!navigator.geolocation) {
-      alert("La geolocalización no está disponible en este dispositivo o navegador.");
+      toast.error("Geolocalización no disponible en este dispositivo.");
       return;
     }
     const setLoading = target === "entrega" ? setPickupLoading : setReturnLoading;
@@ -852,10 +852,11 @@ export default function VehicleInspectionApp() {
         if (target === "entrega") setPickupLocation(loc);
         else setReturnLocation(loc);
         setLoading(false);
+        toast.success(`Ubicación de ${target} capturada`);
       },
       (err) => {
         setLoading(false);
-        alert("No se pudo obtener la ubicación: " + err.message);
+        toast.error("No se pudo obtener la ubicación", { description: err.message });
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -1072,11 +1073,10 @@ export default function VehicleInspectionApp() {
 
       const fileDate = (rentalDateTime || nowForInput()).replace(/[:T]/g, "-");
       doc.save(`inspeccion-nmax125-${fileDate}.pdf`);
+      toast.success("PDF generado");
     } catch (err) {
       console.error(err);
-      alert(
-        "No se pudo generar el PDF. Verifica que la dependencia 'jspdf' esté instalada (npm install jspdf)."
-      );
+      toast.error("No se pudo generar el PDF", { description: err.message });
     }
   };
 
