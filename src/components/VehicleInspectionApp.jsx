@@ -564,6 +564,22 @@ function DamageMapPanel({ damages, setDamages }) {
           </div>
         </div>
       )}
+
+      {/* Visor de fotos */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <img src={lightbox} alt="Foto ampliada" className="max-h-[85vh] w-auto rounded-2xl" />
+          <button
+            className="absolute top-4 right-4 h-10 w-10 rounded-full bg-white/15 text-white flex items-center justify-center"
+            aria-label="Cerrar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
