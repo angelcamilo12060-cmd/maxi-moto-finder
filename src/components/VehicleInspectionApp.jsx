@@ -1098,7 +1098,8 @@ export default function VehicleInspectionApp() {
   return (
     <div className="min-h-screen bg-gray-50 pb-10">
       {/* CABECERA CON BRANDING */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 pt-5 pb-4 flex items-center gap-3">
+      <header className="bg-white border-b border-gray-100 sticky top-0 z-30 px-4 pt-5 pb-3">
+        <div className="flex items-center gap-3">
         {/*
           Espacio reservado para el logo oficial de Maxi Moto Bcn.
           Sustituye este bloque por:
@@ -1109,13 +1110,56 @@ export default function VehicleInspectionApp() {
         <div className="h-12 w-12 rounded-xl bg-gray-900 flex items-center justify-center overflow-hidden shrink-0">
           <Building2 size={22} className="text-orange-400" />
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-gray-900 leading-tight">Maxi Moto Bcn</h1>
           <p className="text-xs text-gray-400">Registro de Inspección de Vehículo</p>
+        </div>
+          <span
+            className={`text-[11px] font-medium flex items-center gap-1 transition-opacity ${
+              draftStatus === "saved" ? "text-emerald-600" : "text-gray-400"
+            }`}
+          >
+            {draftStatus === "saving" ? (
+              <>
+                <Loader2 size={12} className="animate-spin" /> Guardando
+              </>
+            ) : draftStatus === "saved" ? (
+              <>
+                <Check size={12} /> Guardado
+              </>
+            ) : null}
+          </span>
+        </div>
+
+        {/* Barra de progreso */}
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[11px] font-medium text-gray-500">
+              Progreso de la inspección · {completedSteps}/{checklistSteps.length}
+            </span>
+            <span className="text-[11px] font-bold text-blue-600">{progress}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-gray-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
         </div>
       </header>
 
       <main className="px-4 pt-4 space-y-4 max-w-md mx-auto">
+        {draftRestored && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 animate-in fade-in slide-in-from-top-2">
+            <p className="text-xs text-amber-700">Estás continuando un borrador guardado.</p>
+            <button
+              onClick={resetForm}
+              className="text-xs font-semibold text-amber-700 underline underline-offset-2"
+            >
+              Empezar de cero
+            </button>
+          </div>
+        )}
         {/* TARJETA DE VEHÍCULO */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 flex items-center gap-4">
           <div className="h-14 w-14 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
