@@ -1,14 +1,18 @@
-# Welcome to your Lovable project
+# Maxi Moto PWA
+
+"Tengo este código React/JSX para una PWA de mi alquiler Maxi Moto Bcn, por favor renderízalo y desplígalo
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://maxi-moto-finder.lovable.app
+
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/763f44b4-db1c-4de8-813b-4ba0cc1d0e7e).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +24,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
