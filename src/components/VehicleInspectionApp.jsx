@@ -1571,27 +1571,119 @@ export default function VehicleInspectionApp() {
         <div className="space-y-3 pt-1">
           <button
             onClick={handleSaveRecord}
-            className="w-full h-14 rounded-2xl bg-gray-900 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:bg-gray-800"
+            className="w-full h-14 rounded-2xl bg-gray-900 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-transform duration-150 hover:bg-gray-800 active:scale-[0.98]"
           >
             <Save size={18} />
             Guardar Registro en Historial
           </button>
           <button
             onClick={handleGeneratePDF}
-            className="w-full h-14 rounded-2xl bg-blue-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:bg-blue-700"
+            className="w-full h-14 rounded-2xl bg-blue-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-transform duration-150 hover:bg-blue-700 active:scale-[0.98]"
           >
             <FileDown size={18} />
             Generar Reporte y Guardar PDF
           </button>
           <button
             onClick={handleWhatsApp}
-            className="w-full h-14 rounded-2xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm active:bg-emerald-700"
+            className="w-full h-14 rounded-2xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-transform duration-150 hover:bg-emerald-700 active:scale-[0.98]"
           >
             <MessageCircle size={18} />
             Enviar Resumen por WhatsApp
           </button>
+          <button
+            onClick={resetForm}
+            className="w-full h-12 rounded-2xl border border-gray-200 bg-white text-gray-600 font-semibold text-sm flex items-center justify-center gap-2 transition-colors hover:bg-gray-50"
+          >
+            <Eraser size={16} />
+            Nueva inspección (vaciar formulario)
+          </button>
         </div>
       </main>
+
+      {/* MODAL DETALLE DE REGISTRO */}
+      {detailRecord && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 px-0 sm:px-4">
+          <div className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-5 pb-6 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-base font-semibold text-gray-900">Detalle de la inspección</h4>
+              <button
+                onClick={() => setDetailRecord(null)}
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-gray-100 text-gray-500"
+                aria-label="Cerrar"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <dl className="space-y-2 text-sm">
+              {[
+                ["Tipo", detailRecord.mode === "checkin" ? "Entrega" : "Devolución"],
+                ["Guardado", new Date(detailRecord.savedAt).toLocaleString("es-ES")],
+                ["Kilometraje", detailRecord.km ? `${detailRecord.km} km` : "-"],
+                ["Combustible", `${detailRecord.fuelLevel}%`],
+                ["Entrega", detailRecord.rentalDateTime || "-"],
+                ["Devolución", detailRecord.returnDateTime || "-"],
+                ["Daños", `${detailRecord.totalDamages}`],
+                ...(detailRecord.cleanliness ? [["Limpieza", detailRecord.cleanliness]] : []),
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3 border-b border-gray-100 pb-1.5">
+                  <dt className="text-gray-500">{k}</dt>
+                  <dd className="font-medium text-gray-800 text-right">{v}</dd>
+                </div>
+              ))}
+            </dl>
+
+            {detailRecord.odometerPhoto && (
+              <img
+                src={detailRecord.odometerPhoto}
+                alt="Tacómetro"
+                className="mt-4 w-full h-36 object-cover rounded-xl"
+              />
+            )}
+
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => deleteRecord(detailRecord.id)}
+                className="flex-1 h-12 rounded-xl bg-red-50 text-red-600 font-medium"
+              >
+                Eliminar
+              </button>
+              <button
+                onClick={() => loadRecord(detailRecord)}
+                className="flex-1 h-12 rounded-xl bg-blue-600 text-white font-medium"
+              >
+                Cargar datos
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CONFIRMAR VACIADO */}
+      {confirmClear && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-xs bg-white rounded-2xl p-5 animate-in zoom-in-95 duration-150">
+            <h4 className="text-base font-semibold text-gray-900 mb-1">¿Vaciar el historial?</h4>
+            <p className="text-xs text-gray-500 mb-5">
+              Se eliminarán todas las inspecciones guardadas en este dispositivo.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="flex-1 h-11 rounded-xl bg-gray-100 text-gray-600 font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleClearHistory}
+                className="flex-1 h-11 rounded-xl bg-red-600 text-white font-medium"
+              >
+                Vaciar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
