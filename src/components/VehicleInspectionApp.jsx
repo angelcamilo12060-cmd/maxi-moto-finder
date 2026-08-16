@@ -1465,32 +1465,96 @@ export default function VehicleInspectionApp() {
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
               <History size={16} className="text-blue-600" />
-              Historial de Entregas (este dispositivo)
+              Historial ({savedRecords.length})
             </h3>
             {savedRecords.length > 0 && (
-              <button onClick={handleClearHistory} className="text-xs text-gray-400 active:text-red-500">
+              <button
+                onClick={() => setConfirmClear(true)}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
                 Vaciar
               </button>
             )}
           </div>
+
           {savedRecords.length === 0 ? (
             <p className="text-xs text-gray-400">Aún no hay registros guardados en este dispositivo.</p>
           ) : (
-            <div className="space-y-2 max-h-56 overflow-y-auto">
-              {savedRecords.slice(0, 8).map((r) => (
-                <div key={r.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                  <div>
-                    <p className="text-xs font-semibold text-gray-800">
-                      {r.mode === "checkin" ? "Entrega" : "Devolución"} · {r.km || "-"} km
-                    </p>
-                    <p className="text-[11px] text-gray-400">
-                      {new Date(r.savedAt).toLocaleString("es-ES")}
-                    </p>
-                  </div>
-                  <span className="text-[11px] text-gray-400">{r.totalDamages} daño(s)</span>
+            <>
+              <div className="relative mb-2">
+                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={historyQuery}
+                  onChange={(e) => setHistoryQuery(e.target.value)}
+                  placeholder="Buscar por km, fecha o tipo..."
+                  className="w-full h-11 rounded-xl border border-gray-200 pl-9 pr-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-1.5 mb-3">
+                {[
+                  { id: "todos", label: "Todos" },
+                  { id: "checkin", label: "Entregas" },
+                  { id: "checkout", label: "Devoluciones" },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setHistoryFilter(f.id)}
+                    className={`flex-1 h-9 rounded-lg text-xs font-semibold transition-colors ${
+                      historyFilter === f.id
+                        ? "bg-gray-900 text-white"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {filteredRecords.length === 0 ? (
+                <p className="text-xs text-gray-400">Sin resultados para esta búsqueda.</p>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto">
+                  {filteredRecords.map((r) => (
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2 transition-colors hover:bg-gray-100"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-800">
+                          {r.mode === "checkin" ? "Entrega" : "Devolución"} · {r.km || "-"} km ·{" "}
+                          {r.fuelLevel}%
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          {new Date(r.savedAt).toLocaleString("es-ES")} · {r.totalDamages} daño(s)
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setDetailRecord(r)}
+                        className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-blue-600"
+                        aria-label="Ver detalle"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <button
+                        onClick={() => loadRecord(r)}
+                        className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-emerald-600"
+                        aria-label="Duplicar en el formulario"
+                      >
+                        <Copy size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteRecord(r.id)}
+                        className="h-8 w-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-red-500"
+                        aria-label="Eliminar registro"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
 
