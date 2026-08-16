@@ -724,6 +724,15 @@ export default function VehicleInspectionApp() {
 
   // Historial local
   const [savedRecords, setSavedRecords] = useState([]);
+  const [historyQuery, setHistoryQuery] = useState("");
+  const [historyFilter, setHistoryFilter] = useState("todos"); // todos | checkin | checkout
+  const [detailRecord, setDetailRecord] = useState(null);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  // Autoguardado de borrador
+  const [draftStatus, setDraftStatus] = useState("idle"); // idle | saving | saved
+  const [draftRestored, setDraftRestored] = useState(false);
+  const hydrated = useRef(false);
 
   // Refs de firma (para leer la imagen al guardar / exportar PDF)
   const ownerSigRef = useRef(null);
@@ -736,6 +745,31 @@ export default function VehicleInspectionApp() {
     } catch {
       setSavedRecords([]);
     }
+    // Restaurar borrador en curso
+    try {
+      const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
+      if (draft) {
+        setMode(draft.mode ?? "checkin");
+        setKm(draft.km ?? "");
+        setFuelLevel(draft.fuelLevel ?? 100);
+        setDamages(draft.damages ?? emptyDamagesState());
+        setOdometerPhoto(draft.odometerPhoto ?? null);
+        setRentalDateTime(draft.rentalDateTime || nowForInput());
+        setReturnDateTime(draft.returnDateTime ?? "");
+        setPickupLocation(draft.pickupLocation ?? null);
+        setReturnLocation(draft.returnLocation ?? null);
+        setCleanliness(draft.cleanliness ?? null);
+        if (draft.revisions) setRevisions(draft.revisions);
+        if (draft.accessories) setAccessories(draft.accessories);
+        setDraftRestored(true);
+        toast("Borrador recuperado", {
+          description: "Hemos restaurado la inspección que dejaste a medias.",
+        });
+      }
+    } catch {
+      /* borrador corrupto: se ignora */
+    }
+    hydrated.current = true;
   }, []);
 
   const toggleRevision = (id) => setRevisions((prev) => ({ ...prev, [id]: !prev[id] }));
