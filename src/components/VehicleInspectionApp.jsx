@@ -226,6 +226,9 @@ function DamageMapPanel({ damages, setDamages }) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [pendingPoint, setPendingPoint] = useState(null);
   const [form, setForm] = useState({ type: "aranazo", note: "", photo: null });
+  const [lightbox, setLightbox] = useState(null);
+  const draggingId = useRef(null);
+  const dragMoved = useRef(false);
   const containerRef = useRef(null);
   const dropdownRef = useRef(null);
 
@@ -252,6 +255,10 @@ function DamageMapPanel({ damages, setDamages }) {
   };
 
   const handleTap = (e) => {
+    if (dragMoved.current) {
+      dragMoved.current = false;
+      return;
+    }
     const rect = containerRef.current.getBoundingClientRect();
     const clientX = e.touches ? e.touches[0].clientX : e.clientX;
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -291,6 +298,39 @@ function DamageMapPanel({ damages, setDamages }) {
       ...prev,
       [activeView]: prev[activeView].filter((m) => m.id !== id),
     }));
+    toast("Daño eliminado");
+  };
+
+  /* ----------------------- Arrastrar marcadores --------------------------- */
+  const pointToPercent = (clientX, clientY) => {
+    const rect = containerRef.current.getBoundingClientRect();
+    return {
+      x: Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  const startDrag = (e, id) => {
+    e.stopPropagation();
+    draggingId.current = id;
+    dragMoved.current = false;
+  };
+
+  const onDragMove = (e) => {
+    if (!draggingId.current) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const { x, y } = pointToPercent(clientX, clientY);
+    dragMoved.current = true;
+    const id = draggingId.current;
+    setDamages((prev) => ({
+      ...prev,
+      [activeView]: prev[activeView].map((m) => (m.id === id ? { ...m, x, y } : m)),
+    }));
+  };
+
+  const endDrag = () => {
+    draggingId.current = null;
   };
 
   const currentMarkers = damages[activeView] || [];
