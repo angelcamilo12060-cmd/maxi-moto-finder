@@ -883,17 +883,83 @@ export default function VehicleInspectionApp() {
       const updated = [record, ...existing];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       setSavedRecords(updated);
-      alert("Registro guardado en el historial local del dispositivo.");
+      toast.success("Registro guardado", {
+        description: "Disponible en el historial de este dispositivo.",
+      });
     } catch (err) {
-      alert("No se pudo guardar el registro: " + err.message);
+      toast.error("No se pudo guardar el registro", { description: err.message });
     }
   };
 
   const handleClearHistory = () => {
-    if (!window.confirm("¿Eliminar todo el historial guardado en este dispositivo?")) return;
     localStorage.removeItem(STORAGE_KEY);
     setSavedRecords([]);
+    setConfirmClear(false);
+    toast("Historial vaciado");
   };
+
+  const deleteRecord = (id) => {
+    const updated = savedRecords.filter((r) => r.id !== id);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    setSavedRecords(updated);
+    setDetailRecord(null);
+    toast("Registro eliminado");
+  };
+
+  const loadRecord = (r) => {
+    setMode(r.mode ?? "checkin");
+    setKm(r.km ?? "");
+    setFuelLevel(r.fuelLevel ?? 100);
+    setDamages(r.damages ?? emptyDamagesState());
+    setOdometerPhoto(r.odometerPhoto ?? null);
+    setRentalDateTime(r.rentalDateTime || nowForInput());
+    setReturnDateTime(r.returnDateTime ?? "");
+    setPickupLocation(r.pickupLocation ?? null);
+    setReturnLocation(r.returnLocation ?? null);
+    setCleanliness(r.cleanliness ?? null);
+    if (r.revisions) setRevisions(r.revisions);
+    if (r.accessories) setAccessories(r.accessories);
+    setDetailRecord(null);
+    toast.success("Inspección cargada en el formulario");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const resetForm = () => {
+    setKm("");
+    setFuelLevel(100);
+    setDamages(emptyDamagesState());
+    setOdometerPhoto(null);
+    setRentalDateTime(nowForInput());
+    setReturnDateTime("");
+    setPickupLocation(null);
+    setReturnLocation(null);
+    setCleanliness(null);
+    setRevisions(REVISIONS_LIST.reduce((acc, r) => ({ ...acc, [r.id]: false }), {}));
+    setAccessories(ACCESSORIES_LIST.reduce((acc, a) => ({ ...acc, [a.id]: false }), {}));
+    ownerSigRef.current?.clear();
+    clientSigRef.current?.clear();
+    localStorage.removeItem(DRAFT_KEY);
+    setDraftRestored(false);
+    toast("Formulario vacío listo para una nueva inspección");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const filteredRecords = savedRecords
+    .filter((r) => (historyFilter === "todos" ? true : r.mode === historyFilter))
+    .filter((r) => {
+      const q = historyQuery.trim().toLowerCase();
+      if (!q) return true;
+      return [
+        r.km,
+        r.mode === "checkin" ? "entrega" : "devolución",
+        new Date(r.savedAt).toLocaleString("es-ES"),
+        r.cleanliness,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(q);
+    });
 
   /* -------------------------------- PDF ------------------------------------ */
   const handleGeneratePDF = () => {
